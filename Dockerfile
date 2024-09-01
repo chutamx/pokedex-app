@@ -1,5 +1,5 @@
 # Etapa de construcción
-FROM node:16 as build
+FROM node:18 as build
 
 WORKDIR /app
 
@@ -28,9 +28,8 @@ RUN npm install
 RUN echo '{ "style": "default", "rsc": true, "tailwind": { "config": "tailwind.config.js", "css": "app/globals.css", "baseColor": "slate", "cssVariables": true }, "aliases": { "components": "@/components", "utils": "@/lib/utils" } }' > components.json
 
 # Inicializar shadcn-ui y agregar componentes
-RUN npx shadcn-ui@latest init -y
-RUN npx shadcn-ui@latest add button --yes
-RUN npx shadcn-ui@latest add dropdown-menu --yes
+RUN if [ ! -f src/components/ui/button.tsx ]; then npx shadcn-ui@latest init -y && npx shadcn-ui@latest add button --yes; fi
+RUN if [ ! -f src/components/ui/dropdown-menu.tsx ]; then npx shadcn-ui@latest add dropdown-menu --yes; fi
 
 # Instalar shadcn-ui y sus dependencias
 RUN npm install @radix-ui/react-dropdown-menu class-variance-authority clsx tailwind-merge
