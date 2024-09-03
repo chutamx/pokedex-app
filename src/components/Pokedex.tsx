@@ -150,25 +150,42 @@ const Controls: React.FC<{
   handleInfoToggle: () => void;
   language: Language;
   activeScreen: string;
-}> = ({ isPoweredOn, cameraActive, handleIdentify, setCameraActive, isNarrating, identifiedPokemon, handleNarrate, stopNarration, handleInfoToggle, language, activeScreen }) => (
+  vibrate: (duration: number) => void;
+  setLedIndicator: (operation: 'identify' | 'narrate' | 'info') => void;
+}> = ({ isPoweredOn, cameraActive, handleIdentify, setCameraActive, isNarrating, identifiedPokemon, handleNarrate, stopNarration, handleInfoToggle, language, activeScreen, vibrate, setLedIndicator }) => (
   <div className="grid grid-cols-3 gap-4 mb-4">
     <Button 
       className="bg-gray-300 hover:bg-gray-400 shadow-[inset_0_-4px_0_rgba(0,0,0,0.3)] active:shadow-[inset_0_4px_0_rgba(0,0,0,0.3)] active:translate-y-1 transition-all duration-100 flex items-center justify-center py-4 rounded-lg"
-      onClick={handleIdentify}
+      onClick={() => {
+        handleIdentify();
+        vibrate(50);
+      }}
       disabled={!isPoweredOn}
     >
       <Aperture className="h-8 w-8 text-gray-700" />
     </Button>
     <Button 
       className="bg-gray-300 hover:bg-gray-400 shadow-[inset_0_-4px_0_rgba(0,0,0,0.3)] active:shadow-[inset_0_4px_0_rgba(0,0,0,0.3)] active:translate-y-1 transition-all duration-100 flex items-center justify-center py-4 rounded-lg"
-      onClick={isNarrating ? stopNarration : handleNarrate}
+      onClick={() => {
+        if (isNarrating) {
+          stopNarration();
+        } else {
+          handleNarrate();
+        }
+        setLedIndicator('narrate');
+        vibrate(50);
+      }}
       disabled={!isPoweredOn || !identifiedPokemon}
     >
       {isNarrating ? <VolumeX className="h-8 w-8 text-gray-700" /> : <Volume2 className="h-8 w-8 text-gray-700" />}
     </Button>
     <Button 
       className="bg-gray-300 hover:bg-gray-400 shadow-[inset_0_-4px_0_rgba(0,0,0,0.3)] active:shadow-[inset_0_4px_0_rgba(0,0,0,0.3)] active:translate-y-1 transition-all duration-100 flex items-center justify-center py-4 rounded-lg"
-      onClick={handleInfoToggle}
+      onClick={() => {
+        handleInfoToggle();
+        setLedIndicator('info');
+        vibrate(50);
+      }}
       disabled={!isPoweredOn || !identifiedPokemon}
     >
       {activeScreen === 'info' ? <Smartphone className="h-8 w-8 text-gray-700" /> : <Info className="h-8 w-8 text-gray-700" />}
@@ -219,10 +236,10 @@ const Pokedex: React.FC = () => {
   const blinkIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const playPowerSound = useSound('/sounds/power.mp3');
-  const playButtonSound = useSound('/sounds/button.mp3');
   const playCameraSound = useSound('/sounds/camera.mp3');
 
   const handlePower = () => {
+    playPowerSound();
     if (isPoweredOn) {
       setIsPoweredOn(false);
       setActiveScreen('main');
@@ -239,12 +256,25 @@ const Pokedex: React.FC = () => {
       }
       setLedStatus({ blue: false, yellow: false, green: false });
       setIsIdentifying(false);
+      stopAllSounds(); // Nueva función para detener todos los sonidos
+      vibrate(100); // Simulación de vibración
     } else {
       setIsPoweredOn(true);
-      setCameraActive(true); // Activar la cámara al encender
+      setCameraActive(true);
       powerOnLedSequence();
+      vibrate(200); // Vibración más larga al encender
     }
-    playPowerSound();
+  };
+
+  const stopAllSounds = () => {
+    window.speechSynthesis.cancel(); // Detiene la narración
+    // Detener otros sonidos si los hay
+  };
+
+  const vibrate = (duration: number) => {
+    if ("vibrate" in navigator) {
+      navigator.vibrate(duration);
+    }
   };
 
   const powerOnLedSequence = () => {
@@ -289,49 +319,42 @@ const Pokedex: React.FC = () => {
   }, [identifiedPokemon, language]);
 
   const handleIdentify = useCallback(async () => {
-    playButtonSound()
-    playCameraSound()
-    setCameraActive(false)
-    setIsIdentifying(true)
-    setActiveScreen('main')
-    setLedStatus(prev => ({ ...prev, blue: true }))
+    if (!isPoweredOn) return;
+  
+    playCameraSound();
+    setCameraActive(false);
+    setIsIdentifying(true);
+    setActiveScreen('main');
+    setLedIndicator('identify');
+    vibrate(50);
 
     try {
-      // Simulación de identificación de Pokémon con un retraso
-      await new Promise(resolve => setTimeout(resolve, 2000))
-      const newPokemon: Pokemon = {
-        name: { en: "Pikachu", es: "Pikachu" },
-        number: 25,
-        types: { en: ["Electric"], es: ["Eléctrico"] },
-        description: {
-          en: "Pikachu is an Electric-type Pokémon introduced in Generation I. It evolves from Pichu when leveled up with high friendship and evolves into Raichu when exposed to a Thunder Stone.",
-          es: "Pikachu es un Pokémon de tipo Eléctrico introducido en la primera generación. Evoluciona de Pichu al subir un nivel con amistad alta y evoluciona a Raichu al usar una piedra trueno."
-        },
-        stats: {
-          hp: 35,
-          attack: 55,
-          defense: 40,
-          specialAttack: 50,
-          specialDefense: 50,
-          speed: 90
-        },
-        moves: ["Impactrueno", "Ataque Rápido", "Cola Férrea", "Bola Voltio"],
-        locations: ["Bosque Verde", "Central Eléctrica", "Pueblo Paleta"],
-        image: "/placeholder.svg?height=200&width=200"
-      }
-      setIdentifiedPokemon(newPokemon)
-      setIdentifiedPokemonList(prev => [...prev, newPokemon])
-      setCurrentPokemonIndex(identifiedPokemonList.length)
-      setActiveScreen('identify')
-      handleNarrate()
+      const imageData = await captureImage();
+      const pokemonName = await recognizeImage(imageData);
+      const pokemonData = await fetchPokemonData(pokemonName);
+      setIdentifiedPokemon(pokemonData);
+      setIdentifiedPokemonList(prev => [...prev, pokemonData]);
+      setCurrentPokemonIndex(identifiedPokemonList.length);
+      setActiveScreen('identify');
+      handleNarrate();
     } catch (error) {
-      console.error("Error al identificar Pokémon", error)
-      // Manejar el error (por ejemplo, mostrar un mensaje de error al usuario)
+      console.error("Error al identificar Pokémon", error);
+      // Mostrar mensaje de error en la pantalla
     } finally {
-      setIsIdentifying(false)
-      setLedStatus(prev => ({ ...prev, blue: false }))
+      setIsIdentifying(false);
     }
-  }, [playButtonSound, playCameraSound, identifiedPokemonList.length, handleNarrate])
+  }, [isPoweredOn, playCameraSound, handleNarrate]);
+
+  const captureImage = async (): Promise<string> => {
+    if (videoRef.current) {
+      const canvas = document.createElement('canvas');
+      canvas.width = videoRef.current.videoWidth;
+      canvas.height = videoRef.current.videoHeight;
+      canvas.getContext('2d')?.drawImage(videoRef.current, 0, 0);
+      return canvas.toDataURL('image/jpeg');
+    }
+    throw new Error('No se pudo capturar la imagen');
+  };
 
   const stopNarration = () => {
     setIsNarrating(false);
@@ -342,15 +365,45 @@ const Pokedex: React.FC = () => {
   };
 
   const handleNavigation = (direction: 'left' | 'right' | 'up' | 'down') => {
-    if (activeScreen === 'identify' && identifiedPokemonList.length > 0) {
-      let newIndex = currentPokemonIndex;
-      if (direction === 'left') {
-        newIndex = (newIndex - 1 + identifiedPokemonList.length) % identifiedPokemonList.length;
-      } else if (direction === 'right') {
-        newIndex = (newIndex + 1) % identifiedPokemonList.length;
+    if (!isPoweredOn || !identifiedPokemon) return;
+
+    vibrate(30);
+
+    if (activeScreen === 'identify') {
+      if (direction === 'left' || direction === 'right') {
+        let newIndex = currentPokemonIndex;
+        if (direction === 'left') {
+          newIndex = (newIndex - 1 + identifiedPokemonList.length) % identifiedPokemonList.length;
+        } else {
+          newIndex = (newIndex + 1) % identifiedPokemonList.length;
+        }
+        setCurrentPokemonIndex(newIndex);
+        setIdentifiedPokemon(identifiedPokemonList[newIndex]);
       }
-      setCurrentPokemonIndex(newIndex);
-      setIdentifiedPokemon(identifiedPokemonList[newIndex]);
+    } else if (activeScreen === 'info') {
+      const categories = ['Bio', 'Movimientos', 'Ubicaciones', 'Estadísticas'];
+      let newIndex = categories.indexOf(activeInfoCategory);
+      if (direction === 'up') {
+        newIndex = (newIndex - 1 + categories.length) % categories.length;
+      } else if (direction === 'down') {
+        newIndex = (newIndex + 1) % categories.length;
+      }
+      setActiveInfoCategory(categories[newIndex]);
+    }
+  };
+
+  const setLedIndicator = (operation: 'identify' | 'narrate' | 'info') => {
+    switch (operation) {
+      case 'identify':
+        setLedStatus(prev => ({ ...prev, blue: true }));
+        setTimeout(() => setLedStatus(prev => ({ ...prev, blue: false })), 1000);
+        break;
+      case 'narrate':
+        setLedStatus(prev => ({ ...prev, yellow: true }));
+        break;
+      case 'info':
+        setLedStatus(prev => ({ ...prev, green: !prev.green }));
+        break;
     }
   };
 
@@ -429,6 +482,8 @@ const Pokedex: React.FC = () => {
           handleInfoToggle={handleInfoToggle}
           language={language}
           activeScreen={activeScreen}
+          vibrate={vibrate}
+          setLedIndicator={setLedIndicator}
         />
 
         <div className="flex justify-between items-center">
