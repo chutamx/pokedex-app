@@ -60,7 +60,8 @@ const Screen: React.FC<{
   identifiedPokemon: Pokemon | null;
   videoRef: React.RefObject<HTMLVideoElement>;
   language: Language;
-}> = ({ isPoweredOn, activeScreen, isIdentifying, identifiedPokemon, videoRef, language }) => {
+  identificationMessage: string | null;
+}> = ({ isPoweredOn, activeScreen, isIdentifying, identifiedPokemon, videoRef, language, identificationMessage }) => {
   const renderInfoScreen = () => {
     if (!identifiedPokemon) return null
     const categories = {
@@ -113,8 +114,13 @@ const Screen: React.FC<{
       <div className={`bg-green-200 rounded-md p-4 h-64 transition-all duration-300 ${isPoweredOn ? 'opacity-100' : 'opacity-50'} shadow-[inset_0_0_6px_rgba(0,0,0,0.3)]`}>
         {isPoweredOn ? (
           activeScreen === 'main' ? (
-            <div className="h-full flex items-center justify-center">
+            <div className="h-full flex items-center justify-center relative">
               <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
+              {identificationMessage && (
+                <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 text-white font-mono">
+                  {identificationMessage}
+                </div>
+              )}
             </div>
           ) : isIdentifying ? (
             <div className="h-full flex items-center justify-center text-gray-700 font-mono">
@@ -151,18 +157,23 @@ const Controls: React.FC<{
   language: Language;
   activeScreen: string;
   vibrate: (duration: number) => void;
-  setLedIndicator: (operation: 'identify' | 'narrate' | 'info') => void;
-}> = ({ isPoweredOn, cameraActive, handleIdentify, setCameraActive, isNarrating, identifiedPokemon, handleNarrate, stopNarration, handleInfoToggle, language, activeScreen, vibrate, setLedIndicator }) => (
+  setLedIndicator: (operation: 'identify' | 'narrate' | 'info', state: boolean) => void;
+  resetCamera: () => void;
+}> = ({ isPoweredOn, cameraActive, handleIdentify, setCameraActive, isNarrating, identifiedPokemon, handleNarrate, stopNarration, handleInfoToggle, language, activeScreen, vibrate, setLedIndicator, resetCamera }) => (
   <div className="grid grid-cols-3 gap-4 mb-4">
     <Button 
       className="bg-gray-300 hover:bg-gray-400 shadow-[inset_0_-4px_0_rgba(0,0,0,0.3)] active:shadow-[inset_0_4px_0_rgba(0,0,0,0.3)] active:translate-y-1 transition-all duration-100 flex items-center justify-center py-4 rounded-lg"
       onClick={() => {
-        handleIdentify();
+        if (identifiedPokemon) {
+          resetCamera();
+        } else {
+          handleIdentify();
+        }
         vibrate(50);
       }}
       disabled={!isPoweredOn}
     >
-      <Aperture className="h-8 w-8 text-gray-700" />
+      {identifiedPokemon ? <Camera className="h-8 w-8 text-gray-700" /> : <Aperture className="h-8 w-8 text-gray-700" />}
     </Button>
     <Button 
       className="bg-gray-300 hover:bg-gray-400 shadow-[inset_0_-4px_0_rgba(0,0,0,0.3)] active:shadow-[inset_0_4px_0_rgba(0,0,0,0.3)] active:translate-y-1 transition-all duration-100 flex items-center justify-center py-4 rounded-lg"
@@ -172,7 +183,7 @@ const Controls: React.FC<{
         } else {
           handleNarrate();
         }
-        setLedIndicator('narrate');
+        setLedIndicator('narrate', !isNarrating);
         vibrate(50);
       }}
       disabled={!isPoweredOn || !identifiedPokemon}
@@ -183,7 +194,7 @@ const Controls: React.FC<{
       className="bg-gray-300 hover:bg-gray-400 shadow-[inset_0_-4px_0_rgba(0,0,0,0.3)] active:shadow-[inset_0_4px_0_rgba(0,0,0,0.3)] active:translate-y-1 transition-all duration-100 flex items-center justify-center py-4 rounded-lg"
       onClick={() => {
         handleInfoToggle();
-        setLedIndicator('info');
+        setLedIndicator('info', activeScreen !== 'info');
         vibrate(50);
       }}
       disabled={!isPoweredOn || !identifiedPokemon}
@@ -219,6 +230,38 @@ const DPad: React.FC<{ handleNavigation: (direction: 'left' | 'right' | 'up' | '
   </div>
 )
 
+const useLedIndicator = () => {
+  const [ledStatus, setLedStatus] = useState({ blue: false, yellow: false, green: false });
+  const [blinkIntervalRef, setBlinkIntervalRef] = useState<NodeJS.Timeout | null>(null);
+
+  const setLedIndicator = useCallback((operation: 'identify' | 'narrate' | 'info', state: boolean = true) => {
+    switch (operation) {
+      case 'identify':
+        setLedStatus(prev => ({ ...prev, blue: state }));
+        break;
+      case 'narrate':
+        if (state) {
+          const interval = setInterval(() => {
+            setLedStatus(prev => ({ ...prev, yellow: !prev.yellow }));
+          }, 500);
+          setBlinkIntervalRef(interval);
+        } else {
+          if (blinkIntervalRef) {
+            clearInterval(blinkIntervalRef);
+            setBlinkIntervalRef(null);
+          }
+          setLedStatus(prev => ({ ...prev, yellow: false }));
+        }
+        break;
+      case 'info':
+        setLedStatus(prev => ({ ...prev, green: !prev.green }));
+        break;
+    }
+  }, [blinkIntervalRef]);
+
+  return { ledStatus, setLedIndicator };
+};
+
 const Pokedex: React.FC = () => {
   const { t, i18n } = useTranslation();
   const [isPoweredOn, setIsPoweredOn] = useState(false);
@@ -230,13 +273,15 @@ const Pokedex: React.FC = () => {
   const [currentPokemonIndex, setCurrentPokemonIndex] = useState(0);
   const [language, setLanguage] = useState<Language>('en');
   const [activeInfoCategory, setActiveInfoCategory] = useState('Bio');
-  const [ledStatus, setLedStatus] = useState({ blue: false, yellow: false, green: false });
   const [isIdentifying, setIsIdentifying] = useState(false);
-  const videoRef = useRef<HTMLVideoElement>(null);
+  const [identificationMessage, setIdentificationMessage] = useState<string | null>(null);
   const blinkIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   const playPowerSound = useSound('/sounds/power.mp3');
   const playCameraSound = useSound('/sounds/camera.mp3');
+
+  const { ledStatus, setLedIndicator } = useLedIndicator();
 
   const handlePower = () => {
     playPowerSound();
@@ -254,21 +299,22 @@ const Pokedex: React.FC = () => {
         clearInterval(blinkIntervalRef.current);
         blinkIntervalRef.current = null;
       }
-      setLedStatus({ blue: false, yellow: false, green: false });
+      setLedIndicator('identify', false);
+      setLedIndicator('narrate', false);
+      setLedIndicator('info', false);
       setIsIdentifying(false);
-      stopAllSounds(); // Nueva función para detener todos los sonidos
-      vibrate(100); // Simulación de vibración
+      stopAllSounds();
+      vibrate(100);
     } else {
       setIsPoweredOn(true);
       setCameraActive(true);
       powerOnLedSequence();
-      vibrate(200); // Vibración más larga al encender
+      vibrate(200);
     }
   };
 
   const stopAllSounds = () => {
-    window.speechSynthesis.cancel(); // Detiene la narración
-    // Detener otros sonidos si los hay
+    window.speechSynthesis.cancel();
   };
 
   const vibrate = (duration: number) => {
@@ -283,25 +329,24 @@ const Pokedex: React.FC = () => {
       { blue: false, yellow: true, green: false },
       { blue: false, yellow: false, green: true },
       { blue: true, yellow: true, green: true },
-      { blue: false, yellow: false, green: true }, // Estado final: solo verde encendido
+      { blue: false, yellow: false, green: true },
     ];
 
     let index = 0;
-    // Limpiar cualquier intervalo existente antes de iniciar uno nuevo
     if (blinkIntervalRef.current) {
       clearInterval(blinkIntervalRef.current);
     }
     blinkIntervalRef.current = setInterval(() => {
-      setLedStatus(sequence[index]);
+      setLedIndicator('identify', sequence[index].blue);
+      setLedIndicator('narrate', sequence[index].yellow);
+      setLedIndicator('info', sequence[index].green);
       index++;
       if (index >= sequence.length) {
-        // Detener la animación después de completar la secuencia
         if (blinkIntervalRef.current) {
           clearInterval(blinkIntervalRef.current);
           blinkIntervalRef.current = null;
         }
-        // Asegurar que solo el LED verde quede encendido
-        setLedStatus({ blue: false, yellow: false, green: true });
+        setLedIndicator('info', true);
       }
     }, 200);
   };
@@ -315,35 +360,93 @@ const Pokedex: React.FC = () => {
     if (identifiedPokemon) {
       speak(identifiedPokemon.description[language]);
       setIsNarrating(true);
+      setLedIndicator('narrate', true);
     }
-  }, [identifiedPokemon, language]);
+  }, [identifiedPokemon, language, setLedIndicator]);
+
+  const stopNarration = () => {
+    setIsNarrating(false);
+    stopYellowLedBlink();
+    window.speechSynthesis.cancel();
+  };
+
+  const stopYellowLedBlink = () => {
+    setLedIndicator('narrate', false);
+  };
+
+  const resetCamera = useCallback(() => {
+    setActiveScreen('main');
+    setIdentifiedPokemon(null);
+    setCameraActive(true);
+    setIdentificationMessage(null);
+    // Asegurarse de que la cámara se reinicie
+    if (videoRef.current && videoRef.current.srcObject) {
+      const tracks = (videoRef.current.srcObject as MediaStream).getTracks();
+      tracks.forEach(track => track.stop());
+    }
+    startCamera();
+  }, []);
+
+  const startCamera = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+    } catch (err) {
+      console.error("Error al acceder a la cámara", err);
+      setIdentificationMessage("Error al acceder a la cámara");
+    }
+  };
 
   const handleIdentify = useCallback(async () => {
     if (!isPoweredOn) return;
   
+    if (identifiedPokemon) {
+      resetCamera();
+      return;
+    }
+
     playCameraSound();
     setCameraActive(false);
     setIsIdentifying(true);
     setActiveScreen('main');
-    setLedIndicator('identify');
+    setLedIndicator('identify', true);
     vibrate(50);
+    setIdentificationMessage("Identificando pokémon...");
 
     try {
       const imageData = await captureImage();
-      const pokemonName = await recognizeImage(imageData);
-      const pokemonData = await fetchPokemonData(pokemonName);
-      setIdentifiedPokemon(pokemonData);
-      setIdentifiedPokemonList(prev => [...prev, pokemonData]);
-      setCurrentPokemonIndex(identifiedPokemonList.length);
-      setActiveScreen('identify');
-      handleNarrate();
+      const recognizedPokemon = await recognizeImage(imageData);
+      
+      if (recognizedPokemon) {
+        const pokemonData = await fetchPokemonData(recognizedPokemon);
+        setIdentifiedPokemon(pokemonData);
+        setIdentifiedPokemonList(prev => [...prev, pokemonData]);
+        setCurrentPokemonIndex(identifiedPokemonList.length);
+        setActiveScreen('identify');
+        setIdentificationMessage(null);
+        // Iniciar la narración inmediatamente
+        handleNarrate();
+      } else {
+        setIdentificationMessage("No se pudo identificar el Pokémon");
+        setTimeout(() => {
+          setIdentificationMessage(null);
+          resetCamera();
+        }, 3000);
+      }
     } catch (error) {
       console.error("Error al identificar Pokémon", error);
-      // Mostrar mensaje de error en la pantalla
+      setIdentificationMessage("Error al identificar Pokémon");
+      setTimeout(() => {
+        setIdentificationMessage(null);
+        resetCamera();
+      }, 3000);
     } finally {
       setIsIdentifying(false);
+      setLedIndicator('identify', false);
     }
-  }, [isPoweredOn, playCameraSound, handleNarrate]);
+  }, [isPoweredOn, playCameraSound, handleNarrate, identifiedPokemonList.length, resetCamera, identifiedPokemon, setLedIndicator]);
 
   const captureImage = async (): Promise<string> => {
     if (videoRef.current) {
@@ -354,10 +457,6 @@ const Pokedex: React.FC = () => {
       return canvas.toDataURL('image/jpeg');
     }
     throw new Error('No se pudo capturar la imagen');
-  };
-
-  const stopNarration = () => {
-    setIsNarrating(false);
   };
 
   const handleInfoToggle = () => {
@@ -392,47 +491,20 @@ const Pokedex: React.FC = () => {
     }
   };
 
-  const setLedIndicator = (operation: 'identify' | 'narrate' | 'info') => {
-    switch (operation) {
-      case 'identify':
-        setLedStatus(prev => ({ ...prev, blue: true }));
-        setTimeout(() => setLedStatus(prev => ({ ...prev, blue: false })), 1000);
-        break;
-      case 'narrate':
-        setLedStatus(prev => ({ ...prev, yellow: true }));
-        break;
-      case 'info':
-        setLedStatus(prev => ({ ...prev, green: !prev.green }));
-        break;
-    }
-  };
-
   useEffect(() => {
-    const startCamera = async () => {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-        }
-      } catch (err) {
-        console.error("Error al acceder a la cámara", err);
-      }
-
-    };
-
     if (isPoweredOn) {
       startCamera();
-    } else {
-      if (videoRef.current && videoRef.current.srcObject) {
-        const tracks = (videoRef.current.srcObject as MediaStream).getTracks();
+    }
+  
+    const currentVideo = videoRef.current;
+  
+    return () => {
+      if (currentVideo && currentVideo.srcObject) {
+        const tracks = (currentVideo.srcObject as MediaStream).getTracks();
         tracks.forEach(track => track.stop());
       }
-    }
-
-    return () => {
-      if (videoRef.current && videoRef.current.srcObject) {
-        const tracks = (videoRef.current.srcObject as MediaStream).getTracks();
-        tracks.forEach(track => track.stop());
+      if (blinkIntervalRef.current) {
+        clearInterval(blinkIntervalRef.current);
       }
     };
   }, [isPoweredOn]);
@@ -468,6 +540,7 @@ const Pokedex: React.FC = () => {
           identifiedPokemon={identifiedPokemon}
           videoRef={videoRef}
           language={language}
+          identificationMessage={identificationMessage}
         />
 
         <Controls 
@@ -484,6 +557,7 @@ const Pokedex: React.FC = () => {
           activeScreen={activeScreen}
           vibrate={vibrate}
           setLedIndicator={setLedIndicator}
+          resetCamera={resetCamera}
         />
 
         <div className="flex justify-between items-center">
