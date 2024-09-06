@@ -45,13 +45,15 @@ const useSound = (url: string) => {
   }, [audio]);
 };
 
-const LEDStatus: React.FC<{ status: { blue: boolean; yellow: boolean; green: boolean } }> = ({ status }) => (
-  <div className="flex space-x-2">
-    <div className={`w-3 h-3 rounded-full ${status.blue ? 'bg-blue-400' : 'bg-blue-900'} shadow-inner border border-blue-500 transition-colors duration-300`}></div>
-    <div className={`w-3 h-3 rounded-full ${status.yellow ? 'bg-yellow-400' : 'bg-yellow-900'} shadow-inner border border-yellow-500 transition-colors duration-300`}></div>
-    <div className={`w-3 h-3 rounded-full ${status.green ? 'bg-green-400' : 'bg-green-900'} shadow-inner border border-green-500 transition-colors duration-300`}></div>
-  </div>
-);
+const LEDStatus: React.FC<{ status: { blue: boolean; yellow: boolean; green: boolean } }> = ({ status }) => {
+  return (
+    <div className="flex space-x-2">
+      <div className={`w-3 h-3 rounded-full ${status.blue ? 'bg-blue-400' : 'bg-blue-900'} shadow-inner border border-blue-500 transition-colors duration-300`}></div>
+      <div className={`w-3 h-3 rounded-full ${status.yellow ? 'bg-yellow-400' : 'bg-yellow-900'} shadow-inner border border-yellow-500 transition-colors duration-300`}></div>
+      <div className={`w-3 h-3 rounded-full ${status.green ? 'bg-green-400' : 'bg-green-900'} shadow-inner border border-green-500 transition-colors duration-300`}></div>
+    </div>
+  );
+};
 
 const Screen: React.FC<{
   isPoweredOn: boolean;
@@ -230,38 +232,6 @@ const DPad: React.FC<{ handleNavigation: (direction: 'left' | 'right' | 'up' | '
   </div>
 )
 
-const useLedIndicator = () => {
-  const [ledStatus, setLedStatus] = useState({ blue: false, yellow: false, green: false });
-  const [blinkIntervalRef, setBlinkIntervalRef] = useState<NodeJS.Timeout | null>(null);
-
-  const setLedIndicator = useCallback((operation: 'identify' | 'narrate' | 'info', state: boolean = true) => {
-    switch (operation) {
-      case 'identify':
-        setLedStatus(prev => ({ ...prev, blue: state }));
-        break;
-      case 'narrate':
-        if (state) {
-          const interval = setInterval(() => {
-            setLedStatus(prev => ({ ...prev, yellow: !prev.yellow }));
-          }, 500);
-          setBlinkIntervalRef(interval);
-        } else {
-          if (blinkIntervalRef) {
-            clearInterval(blinkIntervalRef);
-            setBlinkIntervalRef(null);
-          }
-          setLedStatus(prev => ({ ...prev, yellow: false }));
-        }
-        break;
-      case 'info':
-        setLedStatus(prev => ({ ...prev, green: !prev.green }));
-        break;
-    }
-  }, [blinkIntervalRef]);
-
-  return { ledStatus, setLedIndicator };
-};
-
 const Pokedex: React.FC = () => {
   const { t, i18n } = useTranslation();
   const [isPoweredOn, setIsPoweredOn] = useState(false);
@@ -275,43 +245,102 @@ const Pokedex: React.FC = () => {
   const [activeInfoCategory, setActiveInfoCategory] = useState('Bio');
   const [isIdentifying, setIsIdentifying] = useState(false);
   const [identificationMessage, setIdentificationMessage] = useState<string | null>(null);
+  const [ledStatus, setLedStatus] = useState({ blue: false, yellow: false, green: false });
   const blinkIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
 
   const playPowerSound = useSound('/sounds/power.mp3');
   const playCameraSound = useSound('/sounds/camera.mp3');
 
-  const { ledStatus, setLedIndicator } = useLedIndicator();
+  const setLedIndicator = useCallback((operation: 'identify' | 'narrate' | 'info', state: boolean) => {
+    setLedStatus(prev => ({
+      ...prev,
+      [operation === 'identify' ? 'blue' : operation === 'narrate' ? 'yellow' : 'green']: state
+    }));
+  }, []);
 
-  const handlePower = () => {
+  const powerOnLedSequence = useCallback(() => {
+    const sequence = [
+      { blue: true, yellow: false, green: false },
+      { blue: false, yellow: true, green: false },
+      { blue: false, yellow: false, green: true },
+    ];
+
+    let index = 0;
+  
+    const runSequence = () => {
+      if (index < sequence.length) {
+        setLedStatus(sequence[index]);
+        index++;
+        
+        if (index < sequence.length) {
+          setTimeout(runSequence, 200);
+        }
+      }
+    };
+
+    if (blinkIntervalRef.current) {
+      clearInterval(blinkIntervalRef.current);
+      blinkIntervalRef.current = null;
+    }
+
+    runSequence();
+  }, []);
+
+  const powerOffLedSequence = useCallback(() => {
+    const sequence = [
+      { blue: false, yellow: false, green: true },
+      { blue: false, yellow: true, green: false },
+      { blue: true, yellow: false, green: false },
+      { blue: false, yellow: false, green: false },
+    ];
+
+    let index = 0;
+  
+    const runSequence = () => {
+      if (index < sequence.length) {
+        setLedStatus(sequence[index]);
+        index++;
+        
+        if (index < sequence.length) {
+          setTimeout(runSequence, 200);
+        } else {
+          setLedStatus({ blue: false, yellow: false, green: false });
+        }
+      }
+    };
+
+    if (blinkIntervalRef.current) {
+      clearInterval(blinkIntervalRef.current);
+      blinkIntervalRef.current = null;
+    }
+
+    runSequence();
+  }, []);
+
+  const handlePower = useCallback(() => {
     playPowerSound();
     if (isPoweredOn) {
-      setIsPoweredOn(false);
-      setActiveScreen('main');
-      setIdentifiedPokemon(null);
-      setCameraActive(false);
-      setIsNarrating(false);
-      setIdentifiedPokemonList([]);
-      setCurrentPokemonIndex(0);
-      setActiveInfoCategory('Bio');
-      // Detener la animación de LEDs y apagarlos
-      if (blinkIntervalRef.current) {
-        clearInterval(blinkIntervalRef.current);
-        blinkIntervalRef.current = null;
-      }
-      setLedIndicator('identify', false);
-      setLedIndicator('narrate', false);
-      setLedIndicator('info', false);
-      setIsIdentifying(false);
-      stopAllSounds();
+      powerOffLedSequence();
+      setTimeout(() => {
+        setIsPoweredOn(false);
+        setActiveScreen('main');
+        setIdentifiedPokemon(null);
+        setCameraActive(false);
+        setIsNarrating(false);
+        setIdentifiedPokemonList([]);
+        setCurrentPokemonIndex(0);
+        setActiveInfoCategory('Bio');
+        stopAllSounds();
+      }, 800);
       vibrate(100);
     } else {
       setIsPoweredOn(true);
-      setCameraActive(true);
       powerOnLedSequence();
+      setCameraActive(true);
       vibrate(200);
     }
-  };
+  }, [isPoweredOn, playPowerSound, powerOffLedSequence, powerOnLedSequence]);
 
   const stopAllSounds = () => {
     window.speechSynthesis.cancel();
@@ -321,34 +350,6 @@ const Pokedex: React.FC = () => {
     if ("vibrate" in navigator) {
       navigator.vibrate(duration);
     }
-  };
-
-  const powerOnLedSequence = () => {
-    let sequence = [
-      { blue: true, yellow: false, green: false },
-      { blue: false, yellow: true, green: false },
-      { blue: false, yellow: false, green: true },
-      { blue: true, yellow: true, green: true },
-      { blue: false, yellow: false, green: true },
-    ];
-
-    let index = 0;
-    if (blinkIntervalRef.current) {
-      clearInterval(blinkIntervalRef.current);
-    }
-    blinkIntervalRef.current = setInterval(() => {
-      setLedIndicator('identify', sequence[index].blue);
-      setLedIndicator('narrate', sequence[index].yellow);
-      setLedIndicator('info', sequence[index].green);
-      index++;
-      if (index >= sequence.length) {
-        if (blinkIntervalRef.current) {
-          clearInterval(blinkIntervalRef.current);
-          blinkIntervalRef.current = null;
-        }
-        setLedIndicator('info', true);
-      }
-    }, 200);
   };
 
   const handleLanguageChange = (newLanguage: Language) => {
@@ -370,16 +371,15 @@ const Pokedex: React.FC = () => {
     window.speechSynthesis.cancel();
   };
 
-  const stopYellowLedBlink = () => {
+  const stopYellowLedBlink = useCallback(() => {
     setLedIndicator('narrate', false);
-  };
+  }, [setLedIndicator]);
 
   const resetCamera = useCallback(() => {
     setActiveScreen('main');
     setIdentifiedPokemon(null);
     setCameraActive(true);
     setIdentificationMessage(null);
-    // Asegurarse de que la cámara se reinicie
     if (videoRef.current && videoRef.current.srcObject) {
       const tracks = (videoRef.current.srcObject as MediaStream).getTracks();
       tracks.forEach(track => track.stop());
@@ -426,7 +426,6 @@ const Pokedex: React.FC = () => {
         setCurrentPokemonIndex(identifiedPokemonList.length);
         setActiveScreen('identify');
         setIdentificationMessage(null);
-        // Iniciar la narración inmediatamente
         handleNarrate();
       } else {
         setIdentificationMessage("No se pudo identificar el Pokémon");
