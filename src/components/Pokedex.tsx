@@ -168,6 +168,7 @@ const Controls: React.FC<{
       className="bg-gray-300 hover:bg-gray-400 shadow-[inset_0_-4px_0_rgba(0,0,0,0.3)] active:shadow-[inset_0_4px_0_rgba(0,0,0,0.3)] active:translate-y-1 transition-all duration-100 flex items-center justify-center py-4 rounded-lg"
       onClick={() => {
         if (identifiedPokemon) {
+          stopNarration();
           resetCamera();
         } else {
           handleIdentify();
@@ -358,23 +359,41 @@ const Pokedex: React.FC = () => {
     i18n.changeLanguage(newLanguage);
   };
 
+  const startYellowLedBlink = useCallback(() => {
+    if (blinkIntervalRef.current) {
+      clearInterval(blinkIntervalRef.current);
+    }
+    blinkIntervalRef.current = setInterval(() => {
+      setLedStatus(prev => ({ ...prev, yellow: !prev.yellow }));
+    }, 500);
+  }, []);
+
+  const stopYellowLedBlink = useCallback(() => {
+    if (blinkIntervalRef.current) {
+      clearInterval(blinkIntervalRef.current);
+      blinkIntervalRef.current = null;
+    }
+    setLedStatus(prev => ({ ...prev, yellow: false }));
+  }, []);
+
   const handleNarrate = useCallback(() => {
     if (identifiedPokemon) {
-      speak(identifiedPokemon.description[language]);
+      const utterance = new SpeechSynthesisUtterance(identifiedPokemon.description[language]);
+      utterance.onend = () => {
+        setIsNarrating(false);
+        stopYellowLedBlink();
+      };
+      window.speechSynthesis.speak(utterance);
       setIsNarrating(true);
-      setLedIndicator('narrate', true);
+      startYellowLedBlink();
     }
-  }, [identifiedPokemon, language, setLedIndicator]);
+  }, [identifiedPokemon, language, startYellowLedBlink, stopYellowLedBlink]);
 
-  const stopNarration = () => {
+  const stopNarration = useCallback(() => {
     setIsNarrating(false);
     stopYellowLedBlink();
     window.speechSynthesis.cancel();
-  };
-
-  const stopYellowLedBlink = useCallback(() => {
-    setLedIndicator('narrate', false);
-  }, [setLedIndicator]);
+  }, [stopYellowLedBlink]);
 
   const resetCamera = useCallback(() => {
     setActiveScreen('main');
@@ -404,6 +423,7 @@ const Pokedex: React.FC = () => {
     if (!isPoweredOn) return;
   
     if (identifiedPokemon) {
+      stopNarration();
       resetCamera();
       return;
     }
@@ -446,7 +466,7 @@ const Pokedex: React.FC = () => {
       setIsIdentifying(false);
       setLedIndicator('identify', false);
     }
-  }, [isPoweredOn, playCameraSound, handleNarrate, identifiedPokemonList.length, resetCamera, identifiedPokemon, setLedIndicator]);
+  }, [isPoweredOn, playCameraSound, handleNarrate, identifiedPokemonList.length, resetCamera, identifiedPokemon, setLedIndicator, stopNarration]);
 
   const captureImage = async (): Promise<string> => {
     if (videoRef.current) {
