@@ -63,7 +63,8 @@ const Screen: React.FC<{
   videoRef: React.RefObject<HTMLVideoElement>;
   language: Language;
   identificationMessage: string | null;
-}> = ({ isPoweredOn, activeScreen, isIdentifying, identifiedPokemon, videoRef, language, identificationMessage }) => {
+  activeInfoCategory: string;
+}> = ({ isPoweredOn, activeScreen, isIdentifying, identifiedPokemon, videoRef, language, identificationMessage, activeInfoCategory }) => {
   const renderInfoScreen = () => {
     if (!identifiedPokemon) return null
     const categories = {
@@ -105,8 +106,8 @@ const Screen: React.FC<{
 
     return (
       <div className="h-full flex flex-col justify-center items-center text-gray-800">
-        <div className="text-3xl font-bold mb-4 font-mono">{Object.keys(categories)[0]}</div>
-        <div className="text-xl font-mono">{Object.values(categories)[0]}</div>
+        <div className="text-3xl font-bold mb-4 font-mono">{activeInfoCategory}</div>
+        <div className="text-xl font-mono">{categories[activeInfoCategory as keyof typeof categories]}</div>
       </div>
     )
   }
@@ -481,9 +482,9 @@ const Pokedex: React.FC = () => {
     } else if (activeScreen === 'info') {
       const categories = ['Bio', 'Movimientos', 'Ubicaciones', 'Estadísticas'];
       let newIndex = categories.indexOf(activeInfoCategory);
-      if (direction === 'up') {
+      if (direction === 'up' || direction === 'left') {
         newIndex = (newIndex - 1 + categories.length) % categories.length;
-      } else if (direction === 'down') {
+      } else if (direction === 'down' || direction === 'right') {
         newIndex = (newIndex + 1) % categories.length;
       }
       setActiveInfoCategory(categories[newIndex]);
@@ -540,6 +541,7 @@ const Pokedex: React.FC = () => {
           videoRef={videoRef}
           language={language}
           identificationMessage={identificationMessage}
+          activeInfoCategory={activeInfoCategory}
         />
 
         <Controls 
