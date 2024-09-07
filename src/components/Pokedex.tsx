@@ -378,12 +378,10 @@ const Pokedex: React.FC = () => {
 
   const handleNarrate = useCallback(() => {
     if (identifiedPokemon) {
-      const utterance = new SpeechSynthesisUtterance(identifiedPokemon.description[language]);
-      utterance.onend = () => {
+      speak(identifiedPokemon.description[language], language, () => {
         setIsNarrating(false);
         stopYellowLedBlink();
-      };
-      window.speechSynthesis.speak(utterance);
+      });
       setIsNarrating(true);
       startYellowLedBlink();
     }
@@ -447,7 +445,16 @@ const Pokedex: React.FC = () => {
         setCurrentPokemonIndex(identifiedPokemonList.length);
         setActiveScreen('identify');
         setIdentificationMessage(null);
-        handleNarrate();
+        setTimeout(() => {
+          if (pokemonData && pokemonData.description) {
+            speak(pokemonData.description[language], language, () => {
+              setIsNarrating(false);
+              stopYellowLedBlink();
+            });
+            setIsNarrating(true);
+            startYellowLedBlink();
+          }
+        }, 500);
       } else {
         setIdentificationMessage("No se pudo identificar el Pokémon");
         setTimeout(() => {
@@ -466,7 +473,7 @@ const Pokedex: React.FC = () => {
       setIsIdentifying(false);
       setLedIndicator('identify', false);
     }
-  }, [isPoweredOn, playCameraSound, handleNarrate, identifiedPokemonList.length, resetCamera, identifiedPokemon, setLedIndicator, stopNarration]);
+  }, [isPoweredOn, playCameraSound, language, startYellowLedBlink, stopYellowLedBlink, identifiedPokemonList.length, resetCamera, identifiedPokemon, setLedIndicator, stopNarration]);
 
   const captureImage = async (): Promise<string> => {
     if (videoRef.current) {

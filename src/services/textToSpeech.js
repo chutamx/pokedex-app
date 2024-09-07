@@ -1,4 +1,4 @@
-export const speak = (text, language = 'en-US') => {
+export const speak = (text, language = 'en-US', callback) => {
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.lang = language;
   utterance.rate = 0.9; // Velocidad ligeramente más lenta
@@ -10,6 +10,8 @@ export const speak = (text, language = 'en-US') => {
   if (preferredVoice) {
     utterance.voice = preferredVoice;
   }
+
+  utterance.onend = callback;
 
   window.speechSynthesis.speak(utterance);
 };
