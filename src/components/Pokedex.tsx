@@ -7,7 +7,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
-import { useTranslation } from 'react-i18next';
 import { fetchPokemonData } from '../services/pokeAPI';
 import { recognizeImage } from '../services/imageRecognition';
 import { speak } from '../services/textToSpeech';
@@ -33,8 +32,8 @@ type Pokemon = {
 type Language = 'en' | 'es';
 
 const languages = {
-  en: { name: 'English', nativeName: 'English' },
-  es: { name: 'Spanish', nativeName: 'Español' }
+  es: { name: 'Spanish', nativeName: 'Español' },
+  en: { name: 'English', nativeName: 'English' }
 };
 
 const useSound = (url: string) => {
@@ -45,13 +44,15 @@ const useSound = (url: string) => {
   }, [audio]);
 };
 
-const LEDStatus: React.FC<{ status: { blue: boolean; yellow: boolean; green: boolean } }> = ({ status }) => (
-  <div className="flex space-x-2">
-    <div className={`w-3 h-3 rounded-full ${status.blue ? 'bg-blue-400' : 'bg-blue-900'} shadow-inner border border-blue-500 transition-colors duration-300`}></div>
-    <div className={`w-3 h-3 rounded-full ${status.yellow ? 'bg-yellow-400' : 'bg-yellow-900'} shadow-inner border border-yellow-500 transition-colors duration-300`}></div>
-    <div className={`w-3 h-3 rounded-full ${status.green ? 'bg-green-400' : 'bg-green-900'} shadow-inner border border-green-500 transition-colors duration-300`}></div>
-  </div>
-);
+const LEDStatus: React.FC<{ status: { blue: boolean; yellow: boolean; green: boolean } }> = ({ status }) => {
+  return (
+    <div className="flex space-x-2">
+      <div className={`w-3 h-3 rounded-full ${status.blue ? 'bg-blue-400' : 'bg-blue-900'} shadow-inner border border-blue-500 transition-colors duration-300`}></div>
+      <div className={`w-3 h-3 rounded-full ${status.yellow ? 'bg-yellow-400' : 'bg-yellow-900'} shadow-inner border border-yellow-500 transition-colors duration-300`}></div>
+      <div className={`w-3 h-3 rounded-full ${status.green ? 'bg-green-400' : 'bg-green-900'} shadow-inner border border-green-500 transition-colors duration-300`}></div>
+    </div>
+  );
+};
 
 const Screen: React.FC<{
   isPoweredOn: boolean;
@@ -61,7 +62,9 @@ const Screen: React.FC<{
   videoRef: React.RefObject<HTMLVideoElement>;
   language: Language;
   identificationMessage: string | null;
-}> = ({ isPoweredOn, activeScreen, isIdentifying, identifiedPokemon, videoRef, language, identificationMessage }) => {
+  activeInfoCategory: string;
+  capturedImage: string | null;
+}> = ({ isPoweredOn, activeScreen, isIdentifying, identifiedPokemon, videoRef, language, identificationMessage, activeInfoCategory, capturedImage }) => {
   const renderInfoScreen = () => {
     if (!identifiedPokemon) return null
     const categories = {
@@ -103,8 +106,8 @@ const Screen: React.FC<{
 
     return (
       <div className="h-full flex flex-col justify-center items-center text-gray-800">
-        <div className="text-3xl font-bold mb-4 font-mono">{Object.keys(categories)[0]}</div>
-        <div className="text-xl font-mono">{Object.values(categories)[0]}</div>
+        <div className="text-3xl font-bold mb-4 font-mono">{activeInfoCategory}</div>
+        <div className="text-xl font-mono">{categories[activeInfoCategory as keyof typeof categories]}</div>
       </div>
     )
   }
@@ -115,7 +118,11 @@ const Screen: React.FC<{
         {isPoweredOn ? (
           activeScreen === 'main' ? (
             <div className="h-full flex items-center justify-center relative">
-              <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
+              {capturedImage ? (
+                <img src={capturedImage} alt="Captured Pokemon" className="w-full h-full object-cover" />
+              ) : (
+                <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
+              )}
               {identificationMessage && (
                 <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 text-white font-mono">
                   {identificationMessage}
@@ -165,6 +172,7 @@ const Controls: React.FC<{
       className="bg-gray-300 hover:bg-gray-400 shadow-[inset_0_-4px_0_rgba(0,0,0,0.3)] active:shadow-[inset_0_4px_0_rgba(0,0,0,0.3)] active:translate-y-1 transition-all duration-100 flex items-center justify-center py-4 rounded-lg"
       onClick={() => {
         if (identifiedPokemon) {
+          stopNarration();
           resetCamera();
         } else {
           handleIdentify();
@@ -230,40 +238,7 @@ const DPad: React.FC<{ handleNavigation: (direction: 'left' | 'right' | 'up' | '
   </div>
 )
 
-const useLedIndicator = () => {
-  const [ledStatus, setLedStatus] = useState({ blue: false, yellow: false, green: false });
-  const [blinkIntervalRef, setBlinkIntervalRef] = useState<NodeJS.Timeout | null>(null);
-
-  const setLedIndicator = useCallback((operation: 'identify' | 'narrate' | 'info', state: boolean = true) => {
-    switch (operation) {
-      case 'identify':
-        setLedStatus(prev => ({ ...prev, blue: state }));
-        break;
-      case 'narrate':
-        if (state) {
-          const interval = setInterval(() => {
-            setLedStatus(prev => ({ ...prev, yellow: !prev.yellow }));
-          }, 500);
-          setBlinkIntervalRef(interval);
-        } else {
-          if (blinkIntervalRef) {
-            clearInterval(blinkIntervalRef);
-            setBlinkIntervalRef(null);
-          }
-          setLedStatus(prev => ({ ...prev, yellow: false }));
-        }
-        break;
-      case 'info':
-        setLedStatus(prev => ({ ...prev, green: !prev.green }));
-        break;
-    }
-  }, [blinkIntervalRef]);
-
-  return { ledStatus, setLedIndicator };
-};
-
 const Pokedex: React.FC = () => {
-  const { t, i18n } = useTranslation();
   const [isPoweredOn, setIsPoweredOn] = useState(false);
   const [activeScreen, setActiveScreen] = useState('main');
   const [identifiedPokemon, setIdentifiedPokemon] = useState<Pokemon | null>(null);
@@ -271,47 +246,126 @@ const Pokedex: React.FC = () => {
   const [isNarrating, setIsNarrating] = useState(false);
   const [identifiedPokemonList, setIdentifiedPokemonList] = useState<Pokemon[]>([]);
   const [currentPokemonIndex, setCurrentPokemonIndex] = useState(0);
-  const [language, setLanguage] = useState<Language>('en');
+  const [language, setLanguage] = useState<Language>('es');
   const [activeInfoCategory, setActiveInfoCategory] = useState('Bio');
   const [isIdentifying, setIsIdentifying] = useState(false);
   const [identificationMessage, setIdentificationMessage] = useState<string | null>(null);
+  const [ledStatus, setLedStatus] = useState({ blue: false, yellow: false, green: false });
   const blinkIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const [capturedImage, setCapturedImage] = useState<string | null>(null);
 
   const playPowerSound = useSound('/sounds/power.mp3');
   const playCameraSound = useSound('/sounds/camera.mp3');
 
-  const { ledStatus, setLedIndicator } = useLedIndicator();
+  const setLedIndicator = useCallback((operation: 'identify' | 'narrate' | 'info', state: boolean) => {
+    setLedStatus(prev => ({
+      ...prev,
+      [operation === 'identify' ? 'blue' : operation === 'narrate' ? 'yellow' : 'green']: state
+    }));
+  }, []);
 
-  const handlePower = () => {
+  const powerOnLedSequence = useCallback(() => {
+    const sequence = [
+      { blue: true, yellow: false, green: false },
+      { blue: false, yellow: true, green: false },
+      { blue: false, yellow: false, green: true },
+    ];
+
+    let index = 0;
+  
+    const runSequence = () => {
+      if (index < sequence.length) {
+        setLedStatus(sequence[index]);
+        index++;
+        
+        if (index < sequence.length) {
+          setTimeout(runSequence, 200);
+        }
+      }
+    };
+
+    if (blinkIntervalRef.current) {
+      clearInterval(blinkIntervalRef.current);
+      blinkIntervalRef.current = null;
+    }
+
+    runSequence();
+  }, []);
+
+  const powerOffLedSequence = useCallback(() => {
+    const sequence = [
+      { blue: false, yellow: false, green: true },
+      { blue: false, yellow: true, green: false },
+      { blue: true, yellow: false, green: false },
+      { blue: false, yellow: false, green: false },
+    ];
+
+    let index = 0;
+  
+    const runSequence = () => {
+      if (index < sequence.length) {
+        setLedStatus(sequence[index]);
+        index++;
+        
+        if (index < sequence.length) {
+          setTimeout(runSequence, 200);
+        } else {
+          setLedStatus({ blue: false, yellow: false, green: false });
+        }
+      }
+    };
+
+    if (blinkIntervalRef.current) {
+      clearInterval(blinkIntervalRef.current);
+      blinkIntervalRef.current = null;
+    }
+
+    runSequence();
+  }, []);
+
+  const startCamera = useCallback(async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+    } catch (err) {
+      console.error("Error al acceder a la cámara", err);
+      setIdentificationMessage("Error al acceder a la cámara");
+    }
+  }, []);
+
+  const handlePower = useCallback(() => {
     playPowerSound();
     if (isPoweredOn) {
-      setIsPoweredOn(false);
-      setActiveScreen('main');
-      setIdentifiedPokemon(null);
-      setCameraActive(false);
-      setIsNarrating(false);
-      setIdentifiedPokemonList([]);
-      setCurrentPokemonIndex(0);
-      setActiveInfoCategory('Bio');
-      // Detener la animación de LEDs y apagarlos
-      if (blinkIntervalRef.current) {
-        clearInterval(blinkIntervalRef.current);
-        blinkIntervalRef.current = null;
-      }
-      setLedIndicator('identify', false);
-      setLedIndicator('narrate', false);
-      setLedIndicator('info', false);
-      setIsIdentifying(false);
-      stopAllSounds();
+      powerOffLedSequence();
+      setTimeout(() => {
+        setIsPoweredOn(false);
+        setActiveScreen('main');
+        setIdentifiedPokemon(null);
+        setCameraActive(false);
+        setIsNarrating(false);
+        setIdentifiedPokemonList([]);
+        setCurrentPokemonIndex(0);
+        setActiveInfoCategory('Bio');
+        setCapturedImage(null);
+        setIdentificationMessage(null);
+        stopAllSounds();
+        if (videoRef.current && videoRef.current.srcObject) {
+          const tracks = (videoRef.current.srcObject as MediaStream).getTracks();
+          tracks.forEach(track => track.stop());
+        }
+      }, 800);
       vibrate(100);
     } else {
       setIsPoweredOn(true);
-      setCameraActive(true);
       powerOnLedSequence();
+      setCameraActive(true);
       vibrate(200);
+      startCamera().catch(err => console.error("Error al iniciar la cámara:", err));
     }
-  };
+  }, [isPoweredOn, playPowerSound, powerOffLedSequence, powerOnLedSequence, startCamera]);
 
   const stopAllSounds = () => {
     window.speechSynthesis.cancel();
@@ -323,86 +377,100 @@ const Pokedex: React.FC = () => {
     }
   };
 
-  const powerOnLedSequence = () => {
-    let sequence = [
-      { blue: true, yellow: false, green: false },
-      { blue: false, yellow: true, green: false },
-      { blue: false, yellow: false, green: true },
-      { blue: true, yellow: true, green: true },
-      { blue: false, yellow: false, green: true },
-    ];
+  const handleLanguageChange = (newLanguage: Language) => {
+    setLanguage(newLanguage);
+    resetPokedex();
+  };
 
-    let index = 0;
+  const resetPokedex = useCallback(() => {
+    // Apagar el dispositivo primero
+    setIsPoweredOn(false);
+  
+    // Reiniciar todos los estados
+    setActiveScreen('main');
+    setIdentifiedPokemon(null);
+    setCameraActive(false);
+    setIsNarrating(false);
+    setIdentifiedPokemonList([]);
+    setCurrentPokemonIndex(0);
+    setActiveInfoCategory('Bio');
+    setIdentificationMessage(null);
+    setCapturedImage(null);  // Asegurarse de eliminar la imagen capturada
+  
+    // Detener todos los sonidos
+    stopAllSounds();
+  
+    // Detener la cámara si está activa
+    if (videoRef.current && videoRef.current.srcObject) {
+      const tracks = (videoRef.current.srcObject as MediaStream).getTracks();
+      tracks.forEach(track => track.stop());
+    }
+  
+    // Reiniciar los LEDs
+    setLedStatus({ blue: false, yellow: false, green: false });
+  
+    // Pequeña pausa antes de volver a encender
+    setTimeout(() => {
+      setIsPoweredOn(true);
+      powerOnLedSequence();
+      setCameraActive(true);
+      startCamera().catch(err => console.error("Error al reiniciar la cámara:", err));
+    }, 1000);  // Esperar 1 segundo antes de volver a encender
+  }, [powerOnLedSequence, startCamera]);
+
+  const startYellowLedBlink = useCallback(() => {
     if (blinkIntervalRef.current) {
       clearInterval(blinkIntervalRef.current);
     }
     blinkIntervalRef.current = setInterval(() => {
-      setLedIndicator('identify', sequence[index].blue);
-      setLedIndicator('narrate', sequence[index].yellow);
-      setLedIndicator('info', sequence[index].green);
-      index++;
-      if (index >= sequence.length) {
-        if (blinkIntervalRef.current) {
-          clearInterval(blinkIntervalRef.current);
-          blinkIntervalRef.current = null;
-        }
-        setLedIndicator('info', true);
-      }
-    }, 200);
-  };
+      setLedStatus(prev => ({ ...prev, yellow: !prev.yellow }));
+    }, 500);
+  }, []);
 
-  const handleLanguageChange = (newLanguage: Language) => {
-    setLanguage(newLanguage);
-    i18n.changeLanguage(newLanguage);
-  };
+  const stopYellowLedBlink = useCallback(() => {
+    if (blinkIntervalRef.current) {
+      clearInterval(blinkIntervalRef.current);
+      blinkIntervalRef.current = null;
+    }
+    setLedStatus(prev => ({ ...prev, yellow: false }));
+  }, []);
 
   const handleNarrate = useCallback(() => {
     if (identifiedPokemon) {
-      speak(identifiedPokemon.description[language]);
+      const speechLanguage = language === 'en' ? 'en-US' : 'es-ES';
+      speak(identifiedPokemon.description[language], speechLanguage, () => {
+        setIsNarrating(false);
+        stopYellowLedBlink();
+      });
       setIsNarrating(true);
-      setLedIndicator('narrate', true);
+      startYellowLedBlink();
     }
-  }, [identifiedPokemon, language, setLedIndicator]);
+  }, [identifiedPokemon, language, startYellowLedBlink, stopYellowLedBlink]);
 
-  const stopNarration = () => {
+  const stopNarration = useCallback(() => {
     setIsNarrating(false);
     stopYellowLedBlink();
     window.speechSynthesis.cancel();
-  };
-
-  const stopYellowLedBlink = () => {
-    setLedIndicator('narrate', false);
-  };
+  }, [stopYellowLedBlink]);
 
   const resetCamera = useCallback(() => {
     setActiveScreen('main');
     setIdentifiedPokemon(null);
     setCameraActive(true);
     setIdentificationMessage(null);
-    // Asegurarse de que la cámara se reinicie
+    setCapturedImage(null);
     if (videoRef.current && videoRef.current.srcObject) {
       const tracks = (videoRef.current.srcObject as MediaStream).getTracks();
       tracks.forEach(track => track.stop());
     }
     startCamera();
-  }, []);
-
-  const startCamera = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-      }
-    } catch (err) {
-      console.error("Error al acceder a la cámara", err);
-      setIdentificationMessage("Error al acceder a la cámara");
-    }
-  };
+  }, [startCamera]);
 
   const handleIdentify = useCallback(async () => {
     if (!isPoweredOn) return;
   
     if (identifiedPokemon) {
+      stopNarration();
       resetCamera();
       return;
     }
@@ -417,6 +485,7 @@ const Pokedex: React.FC = () => {
 
     try {
       const imageData = await captureImage();
+      setCapturedImage(imageData);
       const recognizedPokemon = await recognizeImage(imageData);
       
       if (recognizedPokemon) {
@@ -426,8 +495,17 @@ const Pokedex: React.FC = () => {
         setCurrentPokemonIndex(identifiedPokemonList.length);
         setActiveScreen('identify');
         setIdentificationMessage(null);
-        // Iniciar la narración inmediatamente
-        handleNarrate();
+        setTimeout(() => {
+          if (pokemonData && pokemonData.description) {
+            const speechLanguage = language === 'en' ? 'en-US' : 'es-ES';
+            speak(pokemonData.description[language], speechLanguage, () => {
+              setIsNarrating(false);
+              stopYellowLedBlink();
+            });
+            setIsNarrating(true);
+            startYellowLedBlink();
+          }
+        }, 500);
       } else {
         setIdentificationMessage("No se pudo identificar el Pokémon");
         setTimeout(() => {
@@ -446,7 +524,7 @@ const Pokedex: React.FC = () => {
       setIsIdentifying(false);
       setLedIndicator('identify', false);
     }
-  }, [isPoweredOn, playCameraSound, handleNarrate, identifiedPokemonList.length, resetCamera, identifiedPokemon, setLedIndicator]);
+  }, [isPoweredOn, playCameraSound, language, startYellowLedBlink, stopYellowLedBlink, identifiedPokemonList.length, resetCamera, identifiedPokemon, setLedIndicator, stopNarration]);
 
   const captureImage = async (): Promise<string> => {
     if (videoRef.current) {
@@ -482,9 +560,9 @@ const Pokedex: React.FC = () => {
     } else if (activeScreen === 'info') {
       const categories = ['Bio', 'Movimientos', 'Ubicaciones', 'Estadísticas'];
       let newIndex = categories.indexOf(activeInfoCategory);
-      if (direction === 'up') {
+      if (direction === 'up' || direction === 'left') {
         newIndex = (newIndex - 1 + categories.length) % categories.length;
-      } else if (direction === 'down') {
+      } else if (direction === 'down' || direction === 'right') {
         newIndex = (newIndex + 1) % categories.length;
       }
       setActiveInfoCategory(categories[newIndex]);
@@ -507,7 +585,7 @@ const Pokedex: React.FC = () => {
         clearInterval(blinkIntervalRef.current);
       }
     };
-  }, [isPoweredOn]);
+  }, [isPoweredOn, startCamera]);
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-200 p-4">
@@ -518,15 +596,22 @@ const Pokedex: React.FC = () => {
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="icon" className="bg-red-700 text-white hover:bg-red-800 hover:text-white">
                 <Globe className="h-4 w-4" />
-                <span className="sr-only">{t('toggleLanguage')}</span>
+                <span className="sr-only">Cambiar idioma</span>
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
+            <DropdownMenuContent 
+              align="end" 
+              className="bg-red-100 border border-red-300 shadow-lg rounded-md overflow-hidden"
+            >
               {Object.entries(languages).map(([code, { name, nativeName }]) => (
-                <DropdownMenuItem key={code} onClick={() => handleLanguageChange(code as Language)}>
-                  <span className={`${language === code ? 'font-bold' : 'font-normal'}`}>
-                    {nativeName} ({name})
-                  </span>
+                <DropdownMenuItem 
+                  key={code} 
+                  onClick={() => handleLanguageChange(code as Language)}
+                  className={`px-4 py-2 hover:bg-red-200 cursor-pointer ${
+                    language === code ? 'bg-red-300 font-bold' : ''
+                  }`}
+                >
+                  <span>{nativeName} ({name})</span>
                 </DropdownMenuItem>
               ))}
             </DropdownMenuContent>
@@ -541,6 +626,8 @@ const Pokedex: React.FC = () => {
           videoRef={videoRef}
           language={language}
           identificationMessage={identificationMessage}
+          activeInfoCategory={activeInfoCategory}
+          capturedImage={capturedImage}
         />
 
         <Controls 

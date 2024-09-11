@@ -13,7 +13,7 @@ RUN npm install
 RUN npm install -D tailwindcss@latest postcss@latest autoprefixer@latest
 
 # Instalar dependencias adicionales
-RUN npm install react-i18next i18next lucide-react
+RUN npm install react-i18next i18next lucide-react @google/generative-ai
 
 # Inicializar Tailwind CSS
 RUN npx tailwindcss init -p

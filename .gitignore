@@ -29,3 +29,7 @@ Thumbs.db
 
 # Archivos de caché
 .cache/
+
+# Archivos de entorno
+.env.development
+.env.production
