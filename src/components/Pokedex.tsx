@@ -7,7 +7,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
-import { useTranslation } from 'react-i18next';
 import { fetchPokemonData } from '../services/pokeAPI';
 import { recognizeImage } from '../services/imageRecognition';
 import { speak } from '../services/textToSpeech';
@@ -33,8 +32,8 @@ type Pokemon = {
 type Language = 'en' | 'es';
 
 const languages = {
-  en: { name: 'English', nativeName: 'English' },
-  es: { name: 'Spanish', nativeName: 'Español' }
+  es: { name: 'Spanish', nativeName: 'Español' },
+  en: { name: 'English', nativeName: 'English' }
 };
 
 const useSound = (url: string) => {
@@ -235,7 +234,6 @@ const DPad: React.FC<{ handleNavigation: (direction: 'left' | 'right' | 'up' | '
 )
 
 const Pokedex: React.FC = () => {
-  const { t, i18n } = useTranslation();
   const [isPoweredOn, setIsPoweredOn] = useState(false);
   const [activeScreen, setActiveScreen] = useState('main');
   const [identifiedPokemon, setIdentifiedPokemon] = useState<Pokemon | null>(null);
@@ -243,7 +241,7 @@ const Pokedex: React.FC = () => {
   const [isNarrating, setIsNarrating] = useState(false);
   const [identifiedPokemonList, setIdentifiedPokemonList] = useState<Pokemon[]>([]);
   const [currentPokemonIndex, setCurrentPokemonIndex] = useState(0);
-  const [language, setLanguage] = useState<Language>('en');
+  const [language, setLanguage] = useState<Language>('es');
   const [activeInfoCategory, setActiveInfoCategory] = useState('Bio');
   const [isIdentifying, setIsIdentifying] = useState(false);
   const [identificationMessage, setIdentificationMessage] = useState<string | null>(null);
@@ -356,8 +354,25 @@ const Pokedex: React.FC = () => {
 
   const handleLanguageChange = (newLanguage: Language) => {
     setLanguage(newLanguage);
-    i18n.changeLanguage(newLanguage);
+    resetPokedex();
   };
+
+  const resetPokedex = useCallback(() => {
+    setActiveScreen('main');
+    setIdentifiedPokemon(null);
+    setCameraActive(true);
+    setIsNarrating(false);
+    setIdentifiedPokemonList([]);
+    setCurrentPokemonIndex(0);
+    setActiveInfoCategory('Bio');
+    setIdentificationMessage(null);
+    stopAllSounds();
+    if (videoRef.current && videoRef.current.srcObject) {
+      const tracks = (videoRef.current.srcObject as MediaStream).getTracks();
+      tracks.forEach(track => track.stop());
+    }
+    startCamera();
+  }, []);
 
   const startYellowLedBlink = useCallback(() => {
     if (blinkIntervalRef.current) {
@@ -378,7 +393,8 @@ const Pokedex: React.FC = () => {
 
   const handleNarrate = useCallback(() => {
     if (identifiedPokemon) {
-      speak(identifiedPokemon.description[language], language, () => {
+      const speechLanguage = language === 'en' ? 'en-US' : 'es-ES';
+      speak(identifiedPokemon.description[language], speechLanguage, () => {
         setIsNarrating(false);
         stopYellowLedBlink();
       });
@@ -447,7 +463,8 @@ const Pokedex: React.FC = () => {
         setIdentificationMessage(null);
         setTimeout(() => {
           if (pokemonData && pokemonData.description) {
-            speak(pokemonData.description[language], language, () => {
+            const speechLanguage = language === 'en' ? 'en-US' : 'es-ES';
+            speak(pokemonData.description[language], speechLanguage, () => {
               setIsNarrating(false);
               stopYellowLedBlink();
             });
@@ -545,15 +562,22 @@ const Pokedex: React.FC = () => {
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="icon" className="bg-red-700 text-white hover:bg-red-800 hover:text-white">
                 <Globe className="h-4 w-4" />
-                <span className="sr-only">{t('toggleLanguage')}</span>
+                <span className="sr-only">Cambiar idioma</span>
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
+            <DropdownMenuContent 
+              align="end" 
+              className="bg-red-100 border border-red-300 shadow-lg rounded-md overflow-hidden"
+            >
               {Object.entries(languages).map(([code, { name, nativeName }]) => (
-                <DropdownMenuItem key={code} onClick={() => handleLanguageChange(code as Language)}>
-                  <span className={`${language === code ? 'font-bold' : 'font-normal'}`}>
-                    {nativeName} ({name})
-                  </span>
+                <DropdownMenuItem 
+                  key={code} 
+                  onClick={() => handleLanguageChange(code as Language)}
+                  className={`px-4 py-2 hover:bg-red-200 cursor-pointer ${
+                    language === code ? 'bg-red-300 font-bold' : ''
+                  }`}
+                >
+                  <span>{nativeName} ({name})</span>
                 </DropdownMenuItem>
               ))}
             </DropdownMenuContent>
