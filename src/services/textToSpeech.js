@@ -8,7 +8,7 @@ export const speak = (text, language = 'es-ES', callback) => {
   const voices = window.speechSynthesis.getVoices();
   const preferredVoice = voices.find(voice => 
     voice.lang.startsWith(language.slice(0, 2)) && 
-    (voice.name.includes('Google') || voice.name.includes('Samantha') || voice.name.includes('Natural'))
+    (voice.name.includes('Samantha') || voice.name.includes('Natural'))
   );
   if (preferredVoice) {
     utterance.voice = preferredVoice;
