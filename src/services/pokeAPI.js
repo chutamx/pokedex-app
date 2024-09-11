@@ -1,8 +1,10 @@
 import axios from 'axios';
 
+const API_URL = process.env.REACT_APP_API_URL;
+
 export const fetchPokemonData = async (pokemonName) => {
   try {
-    const response = await axios.get(`https://pokeapi.co/api/v2/pokemon/${pokemonName.toLowerCase()}`);
+    const response = await axios.get(`${API_URL}/pokemon/${pokemonName.toLowerCase()}`);
     const speciesResponse = await axios.get(response.data.species.url);
     
     const englishDescription = speciesResponse.data.flavor_text_entries.find(
