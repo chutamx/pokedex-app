@@ -7,3 +7,5 @@ services:
       - "80:80"
     environment:
       - NODE_ENV=production
+      - REACT_APP_GOOGLE_API_KEY=${REACT_APP_GOOGLE_API_KEY}
+      - REACT_APP_API_URL=${REACT_APP_API_URL}

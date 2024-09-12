@@ -21,9 +21,6 @@ RUN npx tailwindcss init -p
 # Copiar el resto de los archivos del proyecto
 COPY . .
 
-# Instalar todas las dependencias
-RUN npm install
-
 # Crear manualmente el archivo components.json
 RUN echo '{ "style": "default", "rsc": true, "tailwind": { "config": "tailwind.config.js", "css": "app/globals.css", "baseColor": "slate", "cssVariables": true }, "aliases": { "components": "@/components", "utils": "@/lib/utils" } }' > components.json
 
