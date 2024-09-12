@@ -1,4 +1,4 @@
-const API_KEY = process.env.REACT_APP_GOOGLE_API_KEY;
+const API_KEY = window._env_.REACT_APP_GOOGLE_API_KEY;
 
 export const recognizeImage = async (imageData) => {
   try {
