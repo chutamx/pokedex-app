@@ -326,7 +326,12 @@ const Pokedex: React.FC = () => {
 
   const startCamera = useCallback(async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      const constraints = {
+        video: {
+          facingMode: { ideal: 'environment' } // Preferir cámara trasera
+        }
+      };
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
       }
