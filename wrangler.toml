@@ -4,4 +4,31 @@ publish = "dist"
 pages_build_output_dir = "dist"
 
 [build.environment]
-NODE_VERSION = "18" 
+NODE_VERSION = "18"
+
+[site]
+bucket = "./dist"
+entry-point = "dist/index.html"
+
+[[headers]]
+for = "/*"
+[headers.values]
+"X-Frame-Options" = "DENY"
+"X-Content-Type-Options" = "nosniff"
+"Referrer-Policy" = "no-referrer"
+"X-XSS-Protection" = "1; mode=block"
+
+[[headers]]
+for = "/*.js"
+[headers.values]
+"Content-Type" = "application/javascript"
+
+[[headers]]
+for = "/*.css"
+[headers.values]
+"Content-Type" = "text/css"
+
+[[headers]]
+for = "/*.html"
+[headers.values]
+"Content-Type" = "text/html; charset=utf-8" 
