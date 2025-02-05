@@ -153,20 +153,29 @@ const Screen: React.FC<{
 
 const Controls: React.FC<{
   isPoweredOn: boolean;
-  cameraActive: boolean;
   handleIdentify: () => void;
-  setCameraActive: React.Dispatch<React.SetStateAction<boolean>>;
   isNarrating: boolean;
   identifiedPokemon: Pokemon | null;
   handleNarrate: () => void;
   stopNarration: () => void;
   handleInfoToggle: () => void;
-  language: Language;
   activeScreen: string;
   vibrate: (duration: number) => void;
   setLedIndicator: (operation: 'identify' | 'narrate' | 'info', state: boolean) => void;
   resetCamera: () => void;
-}> = ({ isPoweredOn, cameraActive, handleIdentify, setCameraActive, isNarrating, identifiedPokemon, handleNarrate, stopNarration, handleInfoToggle, language, activeScreen, vibrate, setLedIndicator, resetCamera }) => (
+}> = ({ 
+  isPoweredOn, 
+  handleIdentify, 
+  isNarrating, 
+  identifiedPokemon, 
+  handleNarrate, 
+  stopNarration, 
+  handleInfoToggle, 
+  activeScreen, 
+  vibrate, 
+  setLedIndicator, 
+  resetCamera 
+}) => (
   <div className="grid grid-cols-3 gap-4 mb-4">
     <Button 
       className="bg-gray-300 hover:bg-gray-400 shadow-[inset_0_-4px_0_rgba(0,0,0,0.3)] active:shadow-[inset_0_4px_0_rgba(0,0,0,0.3)] active:translate-y-1 transition-all duration-100 flex items-center justify-center py-4 rounded-lg"
@@ -614,15 +623,12 @@ const Pokedex = () => {
 
         <Controls 
           isPoweredOn={isPoweredOn}
-          cameraActive={false}
           handleIdentify={handleIdentify}
-          setCameraActive={() => {}}
           isNarrating={isNarrating}
           identifiedPokemon={identifiedPokemon}
           handleNarrate={handleNarrate}
           stopNarration={stopNarration}
           handleInfoToggle={handleInfoToggle}
-          language={language}
           activeScreen={activeScreen}
           vibrate={vibrate}
           setLedIndicator={setLedIndicator}
