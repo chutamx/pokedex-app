@@ -253,7 +253,6 @@ const Pokedex = () => {
   const [identifiedPokemon, setIdentifiedPokemon] = useState<Pokemon | null>(null);
   const [isNarrating, setIsNarrating] = useState(false);
   const [identifiedPokemonList, setIdentifiedPokemonList] = useState<Pokemon[]>([]);
-  const [currentPokemonIndex, setCurrentPokemonIndex] = useState(0);
   const [language, setLanguage] = useState<Language>('es');
   const [activeInfoCategory, setActiveInfoCategory] = useState('Bio');
   const [isIdentifying, setIsIdentifying] = useState(false);
@@ -358,7 +357,6 @@ const Pokedex = () => {
         setIdentifiedPokemon(null);
         setIsNarrating(false);
         setIdentifiedPokemonList([]);
-        setCurrentPokemonIndex(0);
         setActiveInfoCategory('Bio');
         setCapturedImage(null);
         setIdentificationMessage(null);
@@ -382,7 +380,6 @@ const Pokedex = () => {
     setIdentifiedPokemon(null);
     setIsNarrating(false);
     setIdentifiedPokemonList([]);
-    setCurrentPokemonIndex(0);
     setActiveInfoCategory('Bio');
     setIdentificationMessage(null);
     setCapturedImage(null);
@@ -487,7 +484,6 @@ const Pokedex = () => {
         const pokemonData = await fetchPokemonData(recognizedPokemon);
         setIdentifiedPokemon(pokemonData);
         setIdentifiedPokemonList(prev => [...prev, pokemonData]);
-        setCurrentPokemonIndex(prev => prev + 1);
         setActiveScreen('identify');
         setIdentificationMessage(null);
         
@@ -545,13 +541,11 @@ const Pokedex = () => {
 
     if (activeScreen === 'identify') {
       if (direction === 'left' || direction === 'right') {
-        setCurrentPokemonIndex(prev => {
-          const newIndex = direction === 'left'
-            ? (prev - 1 + identifiedPokemonList.length) % identifiedPokemonList.length
-            : (prev + 1) % identifiedPokemonList.length;
-          setIdentifiedPokemon(identifiedPokemonList[newIndex]);
-          return newIndex;
-        });
+        const currentIndex = identifiedPokemonList.findIndex(pokemon => pokemon.number === identifiedPokemon.number);
+        const newIndex = direction === 'left'
+          ? (currentIndex - 1 + identifiedPokemonList.length) % identifiedPokemonList.length
+          : (currentIndex + 1) % identifiedPokemonList.length;
+        setIdentifiedPokemon(identifiedPokemonList[newIndex]);
       }
     } else if (activeScreen === 'info') {
       const categories = ['Bio', 'Movimientos', 'Ubicaciones', 'Estadísticas'];
