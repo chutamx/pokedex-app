@@ -1,9 +1,8 @@
-import React from 'react';
-import Pokedex from './components/Pokedex';
+import { Pokedex } from './components/Pokedex';
 
 function App() {
   return (
-    <div className="App">
+    <div className="min-h-screen bg-background">
       <Pokedex />
     </div>
   );
