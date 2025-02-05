@@ -250,92 +250,330 @@ const Pokedex = () => {
   const [isIdentifying, setIsIdentifying] = useState(false);
   const [identificationMessage, setIdentificationMessage] = useState<string | null>(null);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const [ledStatus, setLedStatus] = useState({ blue: false, yellow: false, green: false });
   const videoRef = useRef<HTMLVideoElement>(null);
+  const blinkIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const playPowerSound = useSound('/sounds/power.mp3');
   const playCameraSound = useSound('/sounds/camera.mp3');
 
   const setLedIndicator = useCallback((operation: 'identify' | 'narrate' | 'info', state: boolean) => {
-    // Implementation of setLedIndicator
-  }, []);
-
-  const powerOnLedSequence = useCallback(() => {
-    // Implementation of powerOnLedSequence
-  }, []);
-
-  const powerOffLedSequence = useCallback(() => {
-    // Implementation of powerOffLedSequence
+    setLedStatus(prev => ({
+      ...prev,
+      [operation === 'identify' ? 'blue' : operation === 'narrate' ? 'yellow' : 'green']: state
+    }));
   }, []);
 
   const startCamera = useCallback(async () => {
-    // Implementation of startCamera
+    try {
+      const constraints = {
+        video: {
+          facingMode: { ideal: 'environment' }
+        }
+      };
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+    } catch (err) {
+      console.error("Error al acceder a la cámara", err);
+      setIdentificationMessage("Error al acceder a la cámara");
+    }
+  }, []);
+
+  const stopAllSounds = useCallback(() => {
+    window.speechSynthesis.cancel();
+  }, []);
+
+  const vibrate = useCallback((duration: number) => {
+    if ("vibrate" in navigator) {
+      navigator.vibrate(duration);
+    }
+  }, []);
+
+  const handleLanguageChange = useCallback((newLanguage: Language) => {
+    setLanguage(newLanguage);
+    resetPokedex();
+  }, []);
+
+  const powerOnLedSequence = useCallback(() => {
+    const sequence = [
+      { blue: true, yellow: false, green: false },
+      { blue: false, yellow: true, green: false },
+      { blue: false, yellow: false, green: true },
+    ];
+
+    let index = 0;
+    const runSequence = () => {
+      if (index < sequence.length) {
+        setLedStatus(sequence[index]);
+        index++;
+        if (index < sequence.length) {
+          setTimeout(runSequence, 200);
+        }
+      }
+    };
+
+    runSequence();
+  }, []);
+
+  const powerOffLedSequence = useCallback(() => {
+    const sequence = [
+      { blue: false, yellow: false, green: true },
+      { blue: false, yellow: true, green: false },
+      { blue: true, yellow: false, green: false },
+      { blue: false, yellow: false, green: false },
+    ];
+
+    let index = 0;
+    const runSequence = () => {
+      if (index < sequence.length) {
+        setLedStatus(sequence[index]);
+        index++;
+        if (index < sequence.length) {
+          setTimeout(runSequence, 200);
+        }
+      }
+    };
+
+    runSequence();
   }, []);
 
   const handlePower = useCallback(() => {
-    // Implementation of handlePower
-  }, [isPoweredOn, playPowerSound, powerOffLedSequence, powerOnLedSequence, startCamera]);
-
-  const stopAllSounds = () => {
-    // Implementation of stopAllSounds
-  };
-
-  const vibrate = (duration: number) => {
-    // Implementation of vibrate
-  };
-
-  const handleLanguageChange = (newLanguage: Language) => {
-    // Implementation of handleLanguageChange
-  };
+    playPowerSound();
+    if (isPoweredOn) {
+      powerOffLedSequence();
+      setTimeout(() => {
+        setIsPoweredOn(false);
+        setActiveScreen('main');
+        setIdentifiedPokemon(null);
+        setIsNarrating(false);
+        setIdentifiedPokemonList([]);
+        setCurrentPokemonIndex(0);
+        setActiveInfoCategory('Bio');
+        setCapturedImage(null);
+        setIdentificationMessage(null);
+        stopAllSounds();
+        if (videoRef.current?.srcObject instanceof MediaStream) {
+          videoRef.current.srcObject.getTracks().forEach(track => track.stop());
+        }
+      }, 800);
+      vibrate(100);
+    } else {
+      setIsPoweredOn(true);
+      powerOnLedSequence();
+      vibrate(200);
+      startCamera().catch(err => console.error("Error al iniciar la cámara:", err));
+    }
+  }, [isPoweredOn, playPowerSound, powerOffLedSequence, powerOnLedSequence, startCamera, stopAllSounds, vibrate]);
 
   const resetPokedex = useCallback(() => {
-    // Implementation of resetPokedex
-  }, [powerOnLedSequence, startCamera]);
+    setIsPoweredOn(false);
+    setActiveScreen('main');
+    setIdentifiedPokemon(null);
+    setIsNarrating(false);
+    setIdentifiedPokemonList([]);
+    setCurrentPokemonIndex(0);
+    setActiveInfoCategory('Bio');
+    setIdentificationMessage(null);
+    setCapturedImage(null);
+    stopAllSounds();
+
+    if (videoRef.current?.srcObject instanceof MediaStream) {
+      videoRef.current.srcObject.getTracks().forEach(track => track.stop());
+    }
+
+    setLedStatus({ blue: false, yellow: false, green: false });
+
+    setTimeout(() => {
+      setIsPoweredOn(true);
+      powerOnLedSequence();
+      startCamera().catch(err => console.error("Error al reiniciar la cámara:", err));
+    }, 1000);
+  }, [powerOnLedSequence, startCamera, stopAllSounds]);
 
   const startYellowLedBlink = useCallback(() => {
-    // Implementation of startYellowLedBlink
+    if (blinkIntervalRef.current) {
+      clearInterval(blinkIntervalRef.current);
+    }
+    blinkIntervalRef.current = setInterval(() => {
+      setLedStatus(prev => ({ ...prev, yellow: !prev.yellow }));
+    }, 500);
   }, []);
 
   const stopYellowLedBlink = useCallback(() => {
-    // Implementation of stopYellowLedBlink
+    if (blinkIntervalRef.current) {
+      clearInterval(blinkIntervalRef.current);
+      blinkIntervalRef.current = null;
+    }
+    setLedStatus(prev => ({ ...prev, yellow: false }));
   }, []);
 
   const handleNarrate = useCallback(() => {
-    // Implementation of handleNarrate
+    if (identifiedPokemon) {
+      const speechLanguage = language === 'en' ? 'en-US' : 'es-ES';
+      speak(identifiedPokemon.description[language], speechLanguage, () => {
+        setIsNarrating(false);
+        stopYellowLedBlink();
+      });
+      setIsNarrating(true);
+      startYellowLedBlink();
+    }
   }, [identifiedPokemon, language, startYellowLedBlink, stopYellowLedBlink]);
 
   const stopNarration = useCallback(() => {
-    // Implementation of stopNarration
+    setIsNarrating(false);
+    stopYellowLedBlink();
+    window.speechSynthesis.cancel();
   }, [stopYellowLedBlink]);
 
   const resetCamera = useCallback(() => {
-    // Implementation of resetCamera
+    setActiveScreen('main');
+    setIdentifiedPokemon(null);
+    setIdentificationMessage(null);
+    setCapturedImage(null);
+    if (videoRef.current?.srcObject instanceof MediaStream) {
+      videoRef.current.srcObject.getTracks().forEach(track => track.stop());
+    }
+    startCamera();
   }, [startCamera]);
 
+  const captureImage = useCallback(async (): Promise<string> => {
+    if (!videoRef.current) {
+      throw new Error('No se pudo capturar la imagen');
+    }
+    const canvas = document.createElement('canvas');
+    canvas.width = videoRef.current.videoWidth;
+    canvas.height = videoRef.current.videoHeight;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      throw new Error('No se pudo obtener el contexto del canvas');
+    }
+    ctx.drawImage(videoRef.current, 0, 0);
+    return canvas.toDataURL('image/jpeg');
+  }, []);
+
   const handleIdentify = useCallback(async () => {
-    // Implementation of handleIdentify
-  }, [isPoweredOn, playCameraSound, language, startYellowLedBlink, stopYellowLedBlink, identifiedPokemonList.length, resetCamera, identifiedPokemon, setLedIndicator, stopNarration]);
+    if (!isPoweredOn) return;
 
-  const captureImage = async (): Promise<string> => {
-    // Implementation of captureImage
-  };
+    if (identifiedPokemon) {
+      stopNarration();
+      resetCamera();
+      return;
+    }
 
-  const handleInfoToggle = () => {
-    // Implementation of handleInfoToggle
-  };
+    playCameraSound();
+    setIsIdentifying(true);
+    setActiveScreen('main');
+    setLedIndicator('identify', true);
+    vibrate(50);
+    setIdentificationMessage("Identificando pokémon...");
 
-  const handleNavigation = (direction: 'left' | 'right' | 'up' | 'down') => {
-    // Implementation of handleNavigation
-  };
+    try {
+      const imageData = await captureImage();
+      setCapturedImage(imageData);
+      const recognizedPokemon = await recognizeImage(imageData);
+      
+      if (recognizedPokemon) {
+        const pokemonData = await fetchPokemonData(recognizedPokemon);
+        setIdentifiedPokemon(pokemonData);
+        setIdentifiedPokemonList(prev => [...prev, pokemonData]);
+        setCurrentPokemonIndex(prev => prev + 1);
+        setActiveScreen('identify');
+        setIdentificationMessage(null);
+        
+        setTimeout(() => {
+          if (pokemonData?.description) {
+            const speechLanguage = language === 'en' ? 'en-US' : 'es-ES';
+            speak(pokemonData.description[language], speechLanguage, () => {
+              setIsNarrating(false);
+              stopYellowLedBlink();
+            });
+            setIsNarrating(true);
+            startYellowLedBlink();
+          }
+        }, 500);
+      } else {
+        setIdentificationMessage("No se pudo identificar el Pokémon");
+        setTimeout(() => {
+          setIdentificationMessage(null);
+          resetCamera();
+        }, 3000);
+      }
+    } catch (error) {
+      console.error("Error al identificar Pokémon", error);
+      setIdentificationMessage("Error al identificar Pokémon");
+      setTimeout(() => {
+        setIdentificationMessage(null);
+        resetCamera();
+      }, 3000);
+    } finally {
+      setIsIdentifying(false);
+      setLedIndicator('identify', false);
+    }
+  }, [
+    isPoweredOn,
+    identifiedPokemon,
+    playCameraSound,
+    setLedIndicator,
+    vibrate,
+    captureImage,
+    language,
+    startYellowLedBlink,
+    stopYellowLedBlink,
+    stopNarration,
+    resetCamera
+  ]);
+
+  const handleInfoToggle = useCallback(() => {
+    setActiveScreen(prevScreen => prevScreen === 'identify' ? 'info' : 'identify');
+  }, []);
+
+  const handleNavigation = useCallback((direction: 'left' | 'right' | 'up' | 'down') => {
+    if (!isPoweredOn || !identifiedPokemon) return;
+
+    vibrate(30);
+
+    if (activeScreen === 'identify') {
+      if (direction === 'left' || direction === 'right') {
+        setCurrentPokemonIndex(prev => {
+          const newIndex = direction === 'left'
+            ? (prev - 1 + identifiedPokemonList.length) % identifiedPokemonList.length
+            : (prev + 1) % identifiedPokemonList.length;
+          setIdentifiedPokemon(identifiedPokemonList[newIndex]);
+          return newIndex;
+        });
+      }
+    } else if (activeScreen === 'info') {
+      const categories = ['Bio', 'Movimientos', 'Ubicaciones', 'Estadísticas'];
+      const currentIndex = categories.indexOf(activeInfoCategory);
+      const newIndex = (direction === 'up' || direction === 'left')
+        ? (currentIndex - 1 + categories.length) % categories.length
+        : (currentIndex + 1) % categories.length;
+      setActiveInfoCategory(categories[newIndex]);
+    }
+  }, [isPoweredOn, identifiedPokemon, activeScreen, activeInfoCategory, identifiedPokemonList, vibrate]);
 
   useEffect(() => {
-    // Implementation of useEffect
+    if (isPoweredOn) {
+      startCamera();
+    }
+
+    return () => {
+      if (videoRef.current?.srcObject instanceof MediaStream) {
+        videoRef.current.srcObject.getTracks().forEach(track => track.stop());
+      }
+      if (blinkIntervalRef.current) {
+        clearInterval(blinkIntervalRef.current);
+      }
+    };
   }, [isPoweredOn, startCamera]);
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-200 p-4">
       <div className="w-full max-w-md bg-red-600 rounded-3xl p-6 shadow-[inset_0_0_10px_rgba(0,0,0,0.6)] border-8 border-red-700">
         <div className="flex justify-between items-center mb-4">
-          <LEDStatus status={{ blue: false, yellow: false, green: false }} />
+          <LEDStatus status={ledStatus} />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="icon" className="bg-red-700 text-white hover:bg-red-800 hover:text-white">
