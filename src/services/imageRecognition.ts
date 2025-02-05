@@ -1,8 +1,9 @@
-const API_KEY = window._env_.REACT_APP_GOOGLE_API_KEY;
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
-export const recognizeImage = async (imageData) => {
+const API_KEY = import.meta.env.VITE_GOOGLE_API_KEY;
+
+export const recognizeImage = async (imageData: string): Promise<string> => {
   try {
-    const { GoogleGenerativeAI } = await import("@google/generative-ai");
     const genAI = new GoogleGenerativeAI(API_KEY);
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
@@ -28,4 +29,4 @@ export const recognizeImage = async (imageData) => {
     // Puedes agregar más detalles del error aquí si es necesario
     return "";
   }
-};
+}; 
