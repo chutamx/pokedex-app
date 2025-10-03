@@ -13,7 +13,7 @@ RUN npm install
 RUN npm install -D tailwindcss@latest postcss@latest autoprefixer@latest
 
 # Instalar dependencias adicionales
-RUN npm install react-i18next i18next lucide-react @google/generative-ai
+RUN npm install react-i18next i18next lucide-react @google/genai mime
 
 # Inicializar Tailwind CSS
 RUN npx tailwindcss init -p
@@ -43,7 +43,7 @@ FROM nginx:alpine
 # Copiar la configuración personalizada de Nginx
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-COPY --from=build /app/build /usr/share/nginx/html
+COPY --from=build /app/dist /usr/share/nginx/html
 
 COPY docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh

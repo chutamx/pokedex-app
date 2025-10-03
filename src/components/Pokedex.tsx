@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Camera, Volume2, VolumeX, Info, Power, ChevronLeft, ChevronRight, Globe, Aperture, Smartphone } from 'lucide-react';
+import { Camera, Volume2, VolumeX, Info, Power, ChevronLeft, ChevronRight, Globe, Aperture, Smartphone, ChevronUp, ChevronDown } from 'lucide-react';
 import { Button } from './ui/button';
 import {
   DropdownMenu,
@@ -177,8 +177,7 @@ const Controls: React.FC<{
   resetCamera 
 }) => (
   <div className="grid grid-cols-3 gap-4 mb-4">
-    <Button 
-      className="bg-gray-300 hover:bg-gray-400 shadow-[inset_0_-4px_0_rgba(0,0,0,0.3)] active:shadow-[inset_0_4px_0_rgba(0,0,0,0.3)] active:translate-y-1 transition-all duration-100 flex items-center justify-center py-4 rounded-lg"
+    <button className="btn-skeuo" 
       onClick={() => {
         if (identifiedPokemon) {
           stopNarration();
@@ -190,10 +189,13 @@ const Controls: React.FC<{
       }}
       disabled={!isPoweredOn}
     >
-      {identifiedPokemon ? <Camera className="h-8 w-8 text-gray-700" /> : <Aperture className="h-8 w-8 text-gray-700" />}
-    </Button>
-    <Button 
-      className="bg-gray-300 hover:bg-gray-400 shadow-[inset_0_-4px_0_rgba(0,0,0,0.3)] active:shadow-[inset_0_4px_0_rgba(0,0,0,0.3)] active:translate-y-1 transition-all duration-100 flex items-center justify-center py-4 rounded-lg"
+      <div className="btn-skeuo-outter">
+        <div className="btn-skeuo-inner">
+          {identifiedPokemon ? <Camera className="h-8 w-8" /> : <Aperture className="h-8 w-8" />}
+        </div>
+      </div>
+    </button>
+    <button className="btn-skeuo"
       onClick={() => {
         if (isNarrating) {
           stopNarration();
@@ -205,10 +207,13 @@ const Controls: React.FC<{
       }}
       disabled={!isPoweredOn || !identifiedPokemon}
     >
-      {isNarrating ? <VolumeX className="h-8 w-8 text-gray-700" /> : <Volume2 className="h-8 w-8 text-gray-700" />}
-    </Button>
-    <Button 
-      className="bg-gray-300 hover:bg-gray-400 shadow-[inset_0_-4px_0_rgba(0,0,0,0.3)] active:shadow-[inset_0_4px_0_rgba(0,0,0,0.3)] active:translate-y-1 transition-all duration-100 flex items-center justify-center py-4 rounded-lg"
+      <div className="btn-skeuo-outter">
+        <div className="btn-skeuo-inner">
+          {isNarrating ? <VolumeX className="h-8 w-8" /> : <Volume2 className="h-8 w-8" />}
+        </div>
+      </div>
+    </button>
+    <button className="btn-skeuo"
       onClick={() => {
         handleInfoToggle();
         setLedIndicator('info', activeScreen !== 'info');
@@ -216,34 +221,65 @@ const Controls: React.FC<{
       }}
       disabled={!isPoweredOn || !identifiedPokemon}
     >
-      {activeScreen === 'info' ? <Smartphone className="h-8 w-8 text-gray-700" /> : <Info className="h-8 w-8 text-gray-700" />}
-    </Button>
+      <div className="btn-skeuo-outter">
+        <div className="btn-skeuo-inner">
+          {activeScreen === 'info' ? <Smartphone className="h-8 w-8" /> : <Info className="h-8 w-8" />}
+        </div>
+      </div>
+    </button>
   </div>
 )
 
 const DPad: React.FC<{ handleNavigation: (direction: 'left' | 'right' | 'up' | 'down') => void }> = ({ handleNavigation }) => (
-  <div className="relative w-24 h-24">
-    <div className="absolute inset-0 bg-gray-700 rounded-full shadow-[inset_0_0_10px_rgba(0,0,0,0.6)]"></div>
-    <Button
-      className="absolute left-1/2 top-0 -translate-x-1/2 w-8 h-8 bg-gray-300 hover:bg-gray-400 shadow-[inset_0_-2px_0_rgba(0,0,0,0.3)] hover:shadow-[inset_0_-1px_0_rgba(0,0,0,0.3)] active:shadow-[inset_0_2px_0_rgba(0,0,0,0.3)] active:translate-y-[2px] transition-all duration-100 rounded-md"
+  <div className="relative w-32 h-32">
+    {/* Base exterior del D-pad - Efecto metálico */}
+    <div className="absolute inset-0 rounded-full bg-gradient-to-b from-neutral-600 to-neutral-800 shadow-[0_0_10px_rgba(0,0,0,0.5)]">
+      {/* Borde metálico con brillo */}
+      <div className="absolute inset-0 rounded-full bg-gradient-to-tl from-black/80 via-neutral-600/50 to-white/30 opacity-70"></div>
+      
+      {/* Base interior con efecto hundido */}
+      <div className="absolute inset-2 rounded-full bg-gradient-to-b from-neutral-900 to-black shadow-[inset_0_2px_8px_rgba(0,0,0,0.9)]">
+        {/* Efecto de brillo superior */}
+        <div className="absolute inset-0 rounded-full bg-gradient-to-b from-white/10 to-transparent"></div>
+        
+        {/* Efecto de profundidad adicional */}
+        <div className="absolute inset-1 rounded-full shadow-[inset_0_4px_12px_rgba(0,0,0,0.9)] bg-black/20"></div>
+
+        {/* Cruz central */}
+        <div className="absolute inset-0">
+          {/* Línea horizontal */}
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[calc(100%-2.25rem)] h-[2px] bg-black/60"></div>
+          {/* Línea vertical */}
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[2px] h-[calc(100%-2.25rem)] bg-black/60"></div>
+        </div>
+      </div>
+    </div>
+
+    {/* Botones direccionales */}
+    <button 
+      className="absolute left-1/2 top-1 -translate-x-1/2 w-10 h-10 bg-gradient-to-b from-neutral-800 to-neutral-900 rounded-sm hover:from-neutral-700 hover:to-neutral-800 active:from-neutral-900 active:to-black active:translate-y-[2px] transition-all duration-100 shadow-[inset_0_-2px_4px_rgba(0,0,0,0.6),0_2px_4px_rgba(0,0,0,0.3)] active:shadow-[inset_0_2px_4px_rgba(0,0,0,0.6)]"
       onClick={() => handleNavigation('up')}
-    />
-    <Button
-      className="absolute left-1/2 bottom-0 -translate-x-1/2 w-8 h-8 bg-gray-300 hover:bg-gray-400 shadow-[inset_0_-2px_0_rgba(0,0,0,0.3)] hover:shadow-[inset_0_-1px_0_rgba(0,0,0,0.3)] active:shadow-[inset_0_2px_0_rgba(0,0,0,0.3)] active:translate-y-[-2px] transition-all duration-100 rounded-md"
+    >
+      <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-white/5 rounded-sm" />
+    </button>
+    <button 
+      className="absolute left-1/2 bottom-1 -translate-x-1/2 w-10 h-10 bg-gradient-to-b from-neutral-800 to-neutral-900 rounded-sm hover:from-neutral-700 hover:to-neutral-800 active:from-neutral-900 active:to-black active:translate-y-[-2px] transition-all duration-100 shadow-[inset_0_-2px_4px_rgba(0,0,0,0.6),0_2px_4px_rgba(0,0,0,0.3)] active:shadow-[inset_0_2px_4px_rgba(0,0,0,0.6)]"
       onClick={() => handleNavigation('down')}
-    />
-    <Button
-      className="absolute left-0 top-1/2 -translate-y-1/2 w-8 h-8 bg-gray-300 hover:bg-gray-400 shadow-[inset_-2px_0_0_rgba(0,0,0,0.3)] hover:shadow-[inset_-1px_0_0_rgba(0,0,0,0.3)] active:shadow-[inset_2px_0_0_rgba(0,0,0,0.3)] active:translate-x-[2px] transition-all duration-100 rounded-md"
+    >
+      <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-white/5 rounded-sm" />
+    </button>
+    <button 
+      className="absolute left-1 top-1/2 -translate-y-1/2 w-10 h-10 bg-gradient-to-b from-neutral-800 to-neutral-900 rounded-sm hover:from-neutral-700 hover:to-neutral-800 active:from-neutral-900 active:to-black active:translate-x-[2px] transition-all duration-100 shadow-[inset_0_-2px_4px_rgba(0,0,0,0.6),0_2px_4px_rgba(0,0,0,0.3)] active:shadow-[inset_0_2px_4px_rgba(0,0,0,0.6)]"
       onClick={() => handleNavigation('left')}
     >
-      <ChevronLeft className="h-4 w-4 text-gray-700" />
-    </Button>
-    <Button
-      className="absolute right-0 top-1/2 -translate-y-1/2 w-8 h-8 bg-gray-300 hover:bg-gray-400 shadow-[inset_2px_0_0_rgba(0,0,0,0.3)] hover:shadow-[inset_1px_0_0_rgba(0,0,0,0.3)] active:shadow-[inset_-2px_0_0_rgba(0,0,0,0.3)] active:translate-x-[-2px] transition-all duration-100 rounded-md"
+      <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-white/5 rounded-sm" />
+    </button>
+    <button 
+      className="absolute right-1 top-1/2 -translate-y-1/2 w-10 h-10 bg-gradient-to-b from-neutral-800 to-neutral-900 rounded-sm hover:from-neutral-700 hover:to-neutral-800 active:from-neutral-900 active:to-black active:translate-x-[-2px] transition-all duration-100 shadow-[inset_0_-2px_4px_rgba(0,0,0,0.6),0_2px_4px_rgba(0,0,0,0.3)] active:shadow-[inset_0_2px_4px_rgba(0,0,0,0.6)]"
       onClick={() => handleNavigation('right')}
     >
-      <ChevronRight className="h-4 w-4 text-gray-700" />
-    </Button>
+      <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-white/5 rounded-sm" />
+    </button>
   </div>
 )
 
